@@ -1,0 +1,6 @@
+for i in `ls`
+do
+    name="mod_$i"
+    echo "working on $name ..."
+    convert $i -bordercolor black -border 20%x20% $name
+done
