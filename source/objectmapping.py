@@ -23,6 +23,8 @@ class ObjectMapping:
         self.img_height = self.r['masks'].shape[0]
         self.img_width = self.r['masks'].shape[1]
         self.total_objects = len(self.r['rois'])
+        self.font_size = 10 # font size for text (grids)
+        self.font_type = 'FreeMono.ttf'
     
     def get_box(self, object_id):
         object_id = object_id-1
@@ -297,8 +299,8 @@ class ObjectMapping:
                                                      'touching':[], 'on':[], 'in':[]}
                                }
             for rel in combos:
-                print(f"Analyzing object_id {rel[0]}: {self.object_class(rel[0])} "
-                      f"and object_id {rel[1]}: {self.object_class(rel[1])}")
+                print(f"Analyzing object_id {rel[0]}:{self.object_class(rel[0])} "
+                      f"  and   object_id {rel[1]}:{self.object_class(rel[1])}")
                 obja, objb = rel
                 flip = rel[::-1]
                 h1a, w1a, h2a, w2a = self.get_box(obja)
@@ -381,7 +383,8 @@ class ObjectMapping:
         return object_relations
     
     def grid_coords(self, object_id, height=3, width=3, grid=False):
-        """Get grid coordinates using the bounding box in form 'A1' where 'A1' is the top left grid. If grid = True returns two variables."""
+        """Get grid coordinates using the bounding box in form 'A1' where 'A1' is the top left grid.
+        If grid = True return two variables."""
         h1, w1, h2, w2 = self.get_box(object_id)
         letters = ascii_uppercase[0:height]
         numbers = (range(1,width+1))
@@ -435,8 +438,9 @@ class ObjectMapping:
         
     
 #     def object_summary(self, object_id):
-    
-#     def summary(self):
+
+
+#     def image_summary(self):
         
         
     
