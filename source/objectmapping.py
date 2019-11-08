@@ -148,16 +148,17 @@ class ObjectMapping:
         wm_center = int((w1+w2)/2)
         return (hm_center, wm_center)
     
-    def object_location(self, object_id):
-        imgH_center_range = [0.333*self.img_height, 0.667*self.img_height]
-        imgW_center_range = [0.4*self.img_width, 0.6*self.img_width]
+    def object_location(self, object_id, height_center=0.333, width_center=0.2):
+        """Descriptive location on a 3x3 grid. Width and height lines are adjustable."""
+        imgH_center_range = np.array([0.5*self.img_height*(1-height_center), self.img_height*(1-height_center)]).astype(int)
+        imgW_center_range = np.array([0.5*self.img_width*(1-width_center), self.img_width*(1-width_center)]).astype(int)
         # section canvas into horizontal and vertical thirds
-        htop = (0, 0, int(imgH_center_range[0]), self.img_width)
-        hcenter = (int(imgH_center_range[0]), 0, int(imgH_center_range[1]), self.img_width)
-        hbottom = (int(imgH_center_range[1]), 0, self.img_height, self.img_width)
-        wleft = (0, 0, self.img_height, int(imgW_center_range[0]))
-        wcenter = (0, int(imgW_center_range[0]), self.img_height, int(imgW_center_range[1]))
-        wright = (0, int(imgW_center_range[1]), self.img_height, self.img_width)
+        htop = (0, 0, imgH_center_range[0], self.img_width)
+        hcenter = (imgH_center_range[0], 0, imgH_center_range[1], self.img_width)
+        hbottom = (imgH_center_range[1], 0, self.img_height, self.img_width)
+        wleft = (0, 0, self.img_height, imgW_center_range[0])
+        wcenter = (0, imgW_center_range[0], self.img_height, imgW_center_range[1])
+        wright = (0, imgW_center_range[1], self.img_height, self.img_width)
         
         # count the number of pixels in each section
         htop_pixels = self.mask_pixel_count(object_id, *htop)
@@ -305,15 +306,24 @@ class ObjectMapping:
                 flip = rel[::-1]
                 h1a, w1a, h2a, w2a = self.get_box(obja)
                 h1b, w1b, h2b, w2b = self.get_box(objb)
+                
                 # Widen width of box size by tol
                 if(w1a-tol*w1a >= 0):
                     w1a_mod = int(w1a-tol*w1a)
+                else:
+                    w1a_mod = w1a 
                 if(w2a+tol*w2a <= self.img_width):
                     w2a_mod = int(w2a+tol*w2a)
+                else:
+                    w2a_mod = w2a
                 if(w1b-tol*w1b >= 0):
                     w1b_mod = int(w1b-tol*w1b)
+                else:
+                    w1b_mod = w1b
                 if(w2a+tol*w2a <= self.img_width):
                     w2b_mod = int(w2b+tol*w2b)
+                else:
+                    w2b_mod = w2b
   
                 maska = self.get_mask(obja).copy()
                 maskb = self.get_mask(objb).copy()
