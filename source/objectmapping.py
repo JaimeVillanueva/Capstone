@@ -1,9 +1,11 @@
 import numpy as np
 import operator
+from keras.preprocessing.image import img_to_array
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib.pyplot import imshow
 from itertools import combinations, product
 from string import ascii_uppercase
+from IPython.display import display
 
 class ObjectMapping:
     '''
@@ -23,7 +25,7 @@ class ObjectMapping:
         self.img_height = self.r['masks'].shape[0]
         self.img_width = self.r['masks'].shape[1]
         self.total_objects = len(self.r['rois'])
-        self.font_size = 10 # font size for text (grids)
+        self.font_size = 15 
         self.font_type = 'FreeMono.ttf'
     
     def get_box(self, object_id):
@@ -62,6 +64,21 @@ class ObjectMapping:
                 mask = np.bitwise_or(mask, self.get_mask(ids).copy())
         return mask
     
+    def _show_id(self, *args):
+        """Internal. Only for displaying object_id for masks that have an object ID"""
+        fnt = ImageFont.truetype(f"Pillow/Tests/fonts/{self.font_type}", self.font_size)
+        mask = self._false_canvas()
+        myimage = Image.new(mode='1', size=(self.img_width, self.img_height), color='white')
+        draw=ImageDraw.Draw(myimage)
+        for ids in args:
+            mask = np.bitwise_or(mask, self.get_mask(ids).copy())
+        for id_text in args:
+            draw.text(self.mass_center(id_text)[::-1], f"{id_text}", font=fnt, fill="black")
+        myimage = img_to_array(myimage).astype(bool)
+        myimage=myimage[:,:,0]
+        
+        return np.bitwise_and(mask, myimage)
+        
     def _show_massbox(self, *args, size=2):
         mass_boxes = self._false_canvas()
         """Internal. Only for displaying mass boxes for masks that have an object ID"""
@@ -71,11 +88,16 @@ class ObjectMapping:
             mass_boxes[h1+size:h2-size, w1+size:w2-size] = False
         return mass_boxes
     
-    def show_mask(self, *args, show_massbox = False):
+    def show_mask(self, *args, show_massbox = False, show_id = False):
         """Creates PIL image from a matrix of booleans. Shows a mask that is either
            directly passed as a boolean matrix or that is retrieved using the object ID.
-           Mass box is only for a mask that is retrieved with the object ID."""
+           show_massbox is only for a mask that is retrieved with the object ID.
+           show_id is only for a mask that is retrieved with the object ID.
+           """
         mask = self._merge_masks(*args)
+        if show_id:
+            id_text = self._show_id(*args)
+            mask = np.bitwise_and(mask, id_text)
         if show_massbox:
             mass_boxes = self._show_massbox(*args)
             mask = np.bitwise_or(mask, mass_boxes)
@@ -148,10 +170,18 @@ class ObjectMapping:
         wm_center = int((w1+w2)/2)
         return (hm_center, wm_center)
     
-    def object_location(self, object_id, height_center=0.333, width_center=0.2):
-        """Descriptive location on a 3x3 grid. Width and height lines are adjustable."""
-        imgH_center_range = np.array([0.5*self.img_height*(1-height_center), self.img_height*(1-height_center)]).astype(int)
-        imgW_center_range = np.array([0.5*self.img_width*(1-width_center), self.img_width*(1-width_center)]).astype(int)
+    def _center_range(self, height_center, width_center):
+        """Creates two arrays which divide the vertical and horizontal into sections."""
+        imgH_center_range = np.array([0.5*self.img_height*(1-height_center), 0.5*self.img_height*(1+height_center)]).astype(int)
+        imgW_center_range = np.array([0.5*self.img_width*(1-width_center), 0.5*self.img_width*(1+width_center)]).astype(int)
+        print(imgW_center_range)
+        return(imgH_center_range, imgW_center_range)
+        
+    def object_location(self, object_id, height_center=0.333, width_center=0.2, grid=False):
+        """Descriptive location on a 3x3 grid. Width and height lines are adjustable.
+           height_center is the percentage of the height desired to be considered center.
+           width_center is the percentage of the width desired to be considered center"""
+        imgH_center_range, imgW_center_range = self._center_range(height_center, width_center)
         # section canvas into horizontal and vertical thirds
         htop = (0, 0, imgH_center_range[0], self.img_width)
         hcenter = (imgH_center_range[0], 0, imgH_center_range[1], self.img_width)
@@ -174,6 +204,9 @@ class ObjectMapping:
         # return the key with the largest value in each dictionary
         hloc = max(hloc_dict.items(), key=operator.itemgetter(1))[0]
         wloc = max(wloc_dict.items(), key=operator.itemgetter(1))[0]
+        if grid:
+            composite = self._show_grid(imgH_center_range, imgW_center_range, *[object_id])
+            display(composite)
         return (hloc, wloc)
     
     def _edge_pixels(self, object_id, h1, w1, h2, w2, return_true = True):
@@ -285,6 +318,7 @@ class ObjectMapping:
                 for i in range(h1,h2):
                     if((mask[i, j] != mask[i+1, j]) and (mask[i, j] == False)):
                             top_pixels.append((i+1,j))
+                            break
             for coords in top_pixels:
                 i,j = coords
                 topline[i,j] = True
@@ -374,7 +408,7 @@ class ObjectMapping:
                         object_relations['object relations']['below'].append(rel)
                         
                     if(b_above_a and b_align_a):
-                        object_relations['object relations']['above'].append(flip)    
+                        object_relations['object relations']['above'].append(flip)
                     elif(b_below_a and b_align_a):
                         object_relations['object relations']['below'].append(flip)
                         
@@ -393,8 +427,7 @@ class ObjectMapping:
         return object_relations
     
     def grid_coords(self, object_id, height=3, width=3, grid=False):
-        """Get grid coordinates using the bounding box in form 'A1' where 'A1' is the top left grid.
-        If grid = True return two variables."""
+        """Get grid coordinates using the bounding box in form 'A1' where 'A1' is the top left grid."""
         h1, w1, h2, w2 = self.get_box(object_id)
         letters = ascii_uppercase[0:height]
         numbers = (range(1,width+1))
@@ -428,18 +461,19 @@ class ObjectMapping:
         grid_sectors = [label_dict[x] for x in align_combos]
         grid_sectors = set(grid_sectors)
         if grid:
-            composite = self.show_grid(object_id, height_array, width_array)  
-            return(composite, grid_sectors)
+            composite = self._show_grid(height_array, width_array, *[object_id])
+            display(composite)
         return grid_sectors
 
-    def show_grid(self, object_id, height_array, width_array):
+    def _show_grid(self, height_array, width_array, *args):
         mygrid = Image.new(mode='1', size=(self.img_width,self.img_height))
         draw=ImageDraw.Draw(mygrid)
         for i in width_array:
             draw.line((i, 0, i, self.img_height), fill="white")
         for i in height_array:
             draw.line((0, i, self.img_width, i), fill="white")
-        composite = Image.composite(mygrid, self.show_mask(self.get_mask(object_id)), mygrid)
+        mask = self.show_mask(*args)
+        composite = Image.composite(mygrid, mask, mygrid)
         return composite
 
         
