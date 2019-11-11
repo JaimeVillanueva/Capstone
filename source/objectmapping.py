@@ -1,7 +1,7 @@
 import numpy as np
 import operator
 from keras.preprocessing.image import img_to_array
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 from matplotlib.pyplot import imshow
 from itertools import combinations, product
 from string import ascii_uppercase
@@ -12,10 +12,11 @@ class ObjectMapping:
         Required:
         import numpy as np
         import operator
-        from PIL import Image, ImageDraw, ImageFont
+        from PIL import Image, ImageDraw, ImageFont, ImageOps
         from matplotlib.pyplot import imshow
         from itertools import combinations, product
         from string import ascii_uppercase
+        from IPython.display import display
     ''' 
     
     def __init__ (self, filename, results, class_names):
@@ -27,6 +28,7 @@ class ObjectMapping:
         self.total_objects = len(self.r['rois'])
         self.font_size = 15 
         self.font_type = 'FreeMono.ttf'
+        self.fnt = ImageFont.truetype(f"Pillow/Tests/fonts/{self.font_type}", self.font_size)
     
     def get_box(self, object_id):
         object_id = object_id-1
@@ -34,6 +36,7 @@ class ObjectMapping:
         h2 = self.r['rois'][object_id][2]
         w1 = self.r['rois'][object_id][1]
         w2 = self.r['rois'][object_id][3]
+        
         return (h1, w1, h2, w2)
     
     def get_objectID(self):
@@ -42,12 +45,14 @@ class ObjectMapping:
     
     def object_class(self, object_id):
         object_id = object_id-1
+        
         return self.class_names[self.r['class_ids'][object_id]]
     
     def count_objects(self):
         "summarize type of objects detected with count"
         objects = [self.class_names[index] for index in self.r['class_ids']]
         objects = dict(zip(*np.unique(objects, return_counts=True)))
+        
         return objects
     
     def get_mask(self, object_id):
@@ -64,28 +69,30 @@ class ObjectMapping:
                 mask = np.bitwise_or(mask, self.get_mask(ids).copy())
         return mask
     
-    def _show_id(self, *args):
+    def _show_id(self, *args, text_color):
         """Internal. Only for displaying object_id for masks that have an object ID"""
-        fnt = ImageFont.truetype(f"Pillow/Tests/fonts/{self.font_type}", self.font_size)
-        mask = self._false_canvas()
-        myimage = Image.new(mode='1', size=(self.img_width, self.img_height), color='white')
-        draw=ImageDraw.Draw(myimage)
-        for ids in args:
-            mask = np.bitwise_or(mask, self.get_mask(ids).copy())
+        if text_color == 'black':
+            canvas_color='white'
+        else:
+            canvas_color='black'
+        myimage = Image.new(mode='1', size=(self.img_width, self.img_height), color=canvas_color)
+        draw = ImageDraw.Draw(myimage)
         for id_text in args:
-            draw.text(self.mass_center(id_text)[::-1], f"{id_text}", font=fnt, fill="black")
+            draw.text(self.mass_center(id_text)[::-1], f"{id_text}", font=self.fnt, fill=text_color)
         myimage = img_to_array(myimage).astype(bool)
-        myimage=myimage[:,:,0]
+        myimage = myimage[:,:,0]
         
-        return np.bitwise_and(mask, myimage)
+        return myimage
         
     def _show_massbox(self, *args, size=2):
-        mass_boxes = self._false_canvas()
         """Internal. Only for displaying mass boxes for masks that have an object ID"""
+        mass_boxes = self._false_canvas()
+        temp_box = self._false_canvas()
         for ids in args:
             h1, w1, h2, w2 = self.mass_box(ids)
-            mass_boxes[h1:h2, w1:w2] = True
-            mass_boxes[h1+size:h2-size, w1+size:w2-size] = False
+            temp_box[h1:h2, w1:w2] = True
+            temp_box[h1+size:h2-size, w1+size:w2-size] = False
+            mass_boxes = np.bitwise_or(mass_boxes, temp_box)
         return mass_boxes
     
     def show_mask(self, *args, show_massbox = False, show_id = False):
@@ -96,13 +103,14 @@ class ObjectMapping:
            """
         mask = self._merge_masks(*args)
         if show_id:
-            id_text = self._show_id(*args)
+            id_text = self._show_id(*args, text_color='black')
             mask = np.bitwise_and(mask, id_text)
         if show_massbox:
             mass_boxes = self._show_massbox(*args)
             mask = np.bitwise_or(mask, mass_boxes)
         mask_size = mask.shape[::-1]
         maskbytes = np.packbits(mask, axis=1)
+        
         return Image.frombytes(mode='1', size=mask_size, data=maskbytes)
            
     def box_center(self, object_id):
@@ -114,14 +122,16 @@ class ObjectMapping:
     def mask_pixel_count(self, object_id):
         h1, w1, h2, w2 = self.get_box(object_id)
         mask = self.get_mask(object_id)
-        return (np.sum(mask[h1:h2, w1:w2]))
+        
+        return np.sum(mask[h1:h2, w1:w2])
     
     def mask_pixel_count(self, object_id, h1, w1, h2, w2):
         mask = self.get_mask(object_id)
-        return (np.sum(mask[h1:h2, w1:w2]))
+        
+        return np.sum(mask[h1:h2, w1:w2])
     
     def _best_coord(self, object_id, current_coords, step_coord, add=True):
-        """Internal only. As edges of the bounding box are scanned in one at a time,
+        """Internal. As edges of the bounding box are scanned in one at a time,
            this returns the coordinate that maximizes number of mask pixels multiplied 
            by the percentage of mask pixels remaining in the moving bounding box."""
         step=1
@@ -162,7 +172,7 @@ class ObjectMapping:
         h2_best = self._best_coord(object_id, (h1, w1_best, h2, w2_best), 2, add=False)
         h1_best = self._best_coord(object_id, (h1, w1_best, h2_best, w2_best), 0, add=True)
                              
-        return(h1_best, w1_best, h2_best, w2_best)
+        return (h1_best, w1_best, h2_best, w2_best)
                                 
     def mass_center(self, object_id):
         h1, w1, h2, w2 = self.mass_box(object_id)
@@ -174,11 +184,11 @@ class ObjectMapping:
         """Creates two arrays which divide the vertical and horizontal into sections."""
         imgH_center_range = np.array([0.5*self.img_height*(1-height_center), 0.5*self.img_height*(1+height_center)]).astype(int)
         imgW_center_range = np.array([0.5*self.img_width*(1-width_center), 0.5*self.img_width*(1+width_center)]).astype(int)
-        print(imgW_center_range)
-        return(imgH_center_range, imgW_center_range)
+        return (imgH_center_range, imgW_center_range)
         
     def object_location(self, object_id, height_center=0.333, width_center=0.2, grid=False):
-        """Descriptive location on a 3x3 grid. Width and height lines are adjustable.
+        """Descriptive location on a 3x3 grid. Width and height lines are adjustable so the grid
+           does not have to be symmetric.
            height_center is the percentage of the height desired to be considered center.
            width_center is the percentage of the width desired to be considered center"""
         imgH_center_range, imgW_center_range = self._center_range(height_center, width_center)
@@ -207,6 +217,7 @@ class ObjectMapping:
         if grid:
             composite = self._show_grid(imgH_center_range, imgW_center_range, *[object_id])
             display(composite)
+            composite.close()
         return (hloc, wloc)
     
     def _edge_pixels(self, object_id, h1, w1, h2, w2, return_true = True):
@@ -274,10 +285,10 @@ class ObjectMapping:
     def create_box_mask(self, h1, w1, h2, w2):
         false_canvas = self._false_canvas()
         false_canvas[h1:h2, w1:w2] = True
+        
         return false_canvas
     
-    def object_outline(self, *args, pad=2):
-        """Returns a boolean array of the object outline. Must use show_mask() to view"""
+    def object_outline(self, *args, pad=2, show_id=False, show_massbox=False):
         outline = self._false_canvas()
         for obj in args:
             h1, w1, h2, w2 = self.get_box(obj)
@@ -295,10 +306,16 @@ class ObjectMapping:
             for coords in edge_pixels:
                 i,j = coords
                 outline[i,j] = True
-        return outline
+        if show_id:
+            id_text = self._show_id(*args, text_color='white')
+            outline = np.bitwise_or(outline, id_text)
+        if show_massbox:
+            mass_boxes = self._show_massbox(*args)
+            outline = np.bitwise_or(outline, mass_boxes)
+       
+        return self.show_mask(outline)
         
     def object_topline(self, *args, pad=2):
-        """Returns a boolean array of the object topline. Must use show_mask() to view"""
         topline = self._false_canvas()
         for obj in args:
             h1, w1, h2, w2 = self.get_box(obj)
@@ -322,7 +339,7 @@ class ObjectMapping:
             for coords in top_pixels:
                 i,j = coords
                 topline[i,j] = True
-        return topline
+        return self.show_mask(topline)
         
     def object_relations(self, tol=0.1):
         if(self.total_objects <= 1):
@@ -430,7 +447,7 @@ class ObjectMapping:
         """Get grid coordinates using the bounding box in form 'A1' where 'A1' is the top left grid."""
         h1, w1, h2, w2 = self.get_box(object_id)
         letters = ascii_uppercase[0:height]
-        numbers = (range(1,width+1))
+        numbers = range(1,width+1)
         combo_labels = product(letters, numbers)
         height_array = np.arange(0, self.img_height, self.img_height/height).astype(int)
         width_array = np.arange(0, self.img_width, self.img_width/width).astype(int)
@@ -450,6 +467,7 @@ class ObjectMapping:
                 h1_index = i
             if(h2_array[i] != h2_array[i+1]):
                 h2_index = i
+        for i in range(len(width_array)-1):
             if(w1_array[i] != w1_array[i+1]):
                 w1_index = i
             if(w2_array[i] != w2_array[i+1]):
@@ -462,11 +480,24 @@ class ObjectMapping:
         grid_sectors = set(grid_sectors)
         if grid:
             composite = self._show_grid(height_array, width_array, *[object_id])
+            # expand grid and add text labels
+            border=20            
+            composite = ImageOps.expand(composite, border=(border, 0, 0, border), fill='white')
+            height_mid = [int((height_array[x] + height_array[x+1])/2) for x in range(len(letters))]
+            width_mid = [int((width_array[x] + width_array[x+1])/2) + border for x in range(len(numbers))]
+            draw = ImageDraw.Draw(composite)
+            
+            for coord, text in zip(height_mid, letters):
+                draw.text((0, coord) , f"{text}", font=self.fnt, fill='black')
+            for coord, text in zip(width_mid, numbers):
+                draw.text((coord, self.img_height+5), f"{text}", font=self.fnt, fill='black')
+                
             display(composite)
+            composite.close()
         return grid_sectors
 
     def _show_grid(self, height_array, width_array, *args):
-        mygrid = Image.new(mode='1', size=(self.img_width,self.img_height))
+        mygrid = Image.new(mode='1', size=(self.img_width, self.img_height))
         draw=ImageDraw.Draw(mygrid)
         for i in width_array:
             draw.line((i, 0, i, self.img_height), fill="white")
@@ -474,6 +505,7 @@ class ObjectMapping:
             draw.line((0, i, self.img_width, i), fill="white")
         mask = self.show_mask(*args)
         composite = Image.composite(mygrid, mask, mygrid)
+        
         return composite
 
         
