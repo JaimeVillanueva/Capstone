@@ -1,8 +1,7 @@
 import numpy as np
-import operator
+from operator import itemgetter
 from keras.preprocessing.image import img_to_array
 from PIL import Image, ImageDraw, ImageFont, ImageOps
-from matplotlib.pyplot import imshow
 from itertools import combinations, product
 from string import ascii_uppercase
 from IPython.display import display
@@ -11,9 +10,9 @@ class ObjectMapping:
     '''
         Required:
         import numpy as np
-        import operator
+        from operator import itemgetter
+        from keras.preprocessing.image import img_to_array
         from PIL import Image, ImageDraw, ImageFont, ImageOps
-        from matplotlib.pyplot import imshow
         from itertools import combinations, product
         from string import ascii_uppercase
         from IPython.display import display
@@ -118,14 +117,10 @@ class ObjectMapping:
         hbb_center = int((h1+h2)/2)
         wbb_center = int((w1+w2)/2)
         return (hbb_center, wbb_center)
-
-    def mask_pixel_count(self, object_id):
-        h1, w1, h2, w2 = self.get_box(object_id)
-        mask = self.get_mask(object_id)
-        
-        return np.sum(mask[h1:h2, w1:w2])
-    
-    def mask_pixel_count(self, object_id, h1, w1, h2, w2):
+   
+    def mask_pixel_count(self, object_id, h1=None, w1=None, h2=None, w2=None):
+        if(h1 == None and w1 == None and h2 == None and w2 == None):
+            h1, w1, h2, w2 = self.get_box(object_id)
         mask = self.get_mask(object_id)
         
         return np.sum(mask[h1:h2, w1:w2])
@@ -212,15 +207,15 @@ class ObjectMapping:
         wloc_dict = {'left':wleft_pixels, 'center':wcenter_pixels, 'right':wright_pixels}
         
         # return the key with the largest value in each dictionary
-        hloc = max(hloc_dict.items(), key=operator.itemgetter(1))[0]
-        wloc = max(wloc_dict.items(), key=operator.itemgetter(1))[0]
+        hloc = max(hloc_dict.items(), key=itemgetter(1))[0]
+        wloc = max(wloc_dict.items(), key=itemgetter(1))[0]
         if grid:
             composite = self._show_grid(imgH_center_range, imgW_center_range, *[object_id])
             display(composite)
             composite.close()
         return (hloc, wloc)
     
-    def _edge_pixels(self, object_id, h1, w1, h2, w2, return_true = True):
+    def _edge_pixels(self, object_id, h1, w1, h2, w2, top=False, bottom=False, sides=False, strict=False, return_true = True):
         """Internal. Returns list of pixels at the True/False border of a mask.
            return_true determines if the list is the coords True or False pixels at border."""
         if(isinstance(object_id, np.ndarray)):
@@ -229,54 +224,73 @@ class ObjectMapping:
             mask = self.get_mask(object_id)
         edge_pixels = []
         # Scan horizontally to find edge
-        for i in range(h1,h2):    
-            for j in range(w1,w2):
-                if((mask[i, j] != mask[i, j+1]) and (mask[i,j] == False)):
-                    if return_true:
-                        edge_pixels.append((i,j+1))
-                    else:
-                        edge_pixels.append((i,j))
-                        
-                if((mask[i, j] != mask[i, j+1]) and (mask[i,j] == True)):
-                    if return_true:
-                        edge_pixels.append((i,j))
-                    else:
-                        edge_pixels.append((i,j+1))
+        if sides:
+            for i in range(h1,h2):    
+                for j in range(w1,w2):
+                    if((mask[i, j] != mask[i, j+1]) and (mask[i,j] == False)):
+                        if return_true:
+                            edge_pixels.append((i,j+1))
+                        else:
+                            edge_pixels.append((i,j))
+                        if strict:
+                           break        
+                    if((mask[i, j] != mask[i, j+1]) and (mask[i,j] == True)):
+                        if return_true:
+                            edge_pixels.append((i,j))
+                        else:
+                            edge_pixels.append((i,j+1))
+                        if strict:
+                           break
 
         # Scan vertically to find edge
-        for j in range(w1,w2):
-            for i in range(h1,h2):
-                if((mask[i, j] != mask[i+1, j]) and (mask[i, j] == False)):
-                    if return_true:
-                        edge_pixels.append((i+1,j))
-                    else:
-                        edge_pixels.append((i,j))
-                if((mask[i, j] != mask[i+1, j]) and (mask[i, j] == True)):
-                    if return_true:
-                        edge_pixels.append((i,j))
-                    else:
-                        edge_pixels.append((i+1,j))
+        if top:
+            for j in range(w1,w2):
+                for i in range(h1,h2):
+                    if((mask[i, j] != mask[i+1, j]) and (mask[i, j] == False)):
+                        if return_true:
+                            edge_pixels.append((i+1,j))
+                        else:
+                            edge_pixels.append((i,j))
+                        if strict:
+                           break
+        if bottom:
+            for j in range(w1,w2):
+                for i in reversed(range(h1,h2+1)):
+                    if((mask[i, j] != mask[i+1, j]) and (mask[i, j] == True)):
+                        if return_true:
+                            edge_pixels.append((i,j))
+                        else:
+                            edge_pixels.append((i+1,j))
+                        if strict:
+                           break
         return edge_pixels
     
-    def inflate_mask(self, object_id, inflation_factor=1):
-        h1, w1, h2, w2 = self.get_box(object_id)
-        # Inflate box holding the mask but don't extend beyond boundaries of image
-        if (h1-inflation_factor >= 0):
-            h1 = h1-inflation_factor
-        if (w1-inflation_factor >= 0):
-            w1 = w1-inflation_factor
-        if (h2+inflation_factor <= self.img_height):
-            h2 = h2 + inflation_factor
-        if (w2+inflation_factor <= self.img_width):
-            w2 = w2 + inflation_factor
-            
-        mask = self.get_mask(object_id).copy()      
-        for expand in range(inflation_factor):
-            edge_pixels = self._edge_pixels(mask, h1, w1, h2, w2, return_true=False)
-            for coords in edge_pixels:
-                i, j = coords
+    def _pixels_ON(self, mask, coords):
+        """Internal."""
+        for i, j  in coords:
                 mask[i,j] = True
         return mask
+    
+    def _edge_guard(self, h1, w1, h2, w2, pad):
+        """Internal. Scanning methods start outside the bounding box. This checks that the start postion exisits in the image."""
+        if (h1-pad >= 0):
+                h1 = h1-pad
+        if (w1-pad >= 0):
+            w1 = w1-pad
+        if (h2+pad <= self.img_height):
+            h2 = h2 + pad
+        if (w2+pad <= self.img_width):
+            w2 = w2 + pad
+        return (h1, w1, h2, w2)
+    
+    def inflate_mask(self, object_id, inflation_factor=1):
+        """Inflates mask by a specified amount. Used to give some tolerance for touching determination"""
+        h1, w1, h2, w2 = self.get_box(object_id)
+        h1, w1, h2, w2 = self._edge_guard(h1, w1, h1, w2, inflation_factor)            
+        mask = self.get_mask(object_id).copy()      
+        for expand in range(inflation_factor):
+            edge_pixels = self._edge_pixels(mask, h1, w1, h2, w2, top=True, bottom=True, sides=True, return_true=False)
+        return self._pixels_ON(mask, edge_pixels)
     
     def _false_canvas(self):
         """Internal"""
@@ -288,24 +302,13 @@ class ObjectMapping:
         
         return false_canvas
     
-    def object_outline(self, *args, pad=2, show_id=False, show_massbox=False):
+    def object_outline(self, *args, pad=1, show_id=False, show_massbox=False):
         outline = self._false_canvas()
         for obj in args:
             h1, w1, h2, w2 = self.get_box(obj)
-            # Pad but don't extend beyond boundaries of image
-            if (h1-pad >= 0):
-                h1 = h1-pad
-            if (w1-pad >= 0):
-                w1 = w1-pad
-            if (h2+pad <= self.img_height):
-                h2 = h2 + pad
-            if (w2+pad <= self.img_width):
-                w2 = w2 + pad
-
-            edge_pixels = self._edge_pixels(obj, h1, w1, h2, w2, return_true=True)
-            for coords in edge_pixels:
-                i,j = coords
-                outline[i,j] = True
+            h1, w1, h2, w2 = self._edge_guard(h1, w1, h2, w2, pad)
+            edge_pixels = self._edge_pixels(obj, h1, w1, h2, w2, top=True, bottom=True, sides=True, return_true=True)
+            outline = self._pixels_ON(outline, edge_pixels)
         if show_id:
             id_text = self._show_id(*args, text_color='white')
             outline = np.bitwise_or(outline, id_text)
@@ -314,51 +317,50 @@ class ObjectMapping:
             outline = np.bitwise_or(outline, mass_boxes)
        
         return self.show_mask(outline)
-        
-    def object_topline(self, *args, pad=2):
+    
+    def object_topline(self, *args, pad=1):
         topline = self._false_canvas()
         for obj in args:
             h1, w1, h2, w2 = self.get_box(obj)
-            # Pad but don't extend beyond boundaries of image
-            if (h1-pad >= 0):
-                h1 = h1-pad
-            if (w1-pad >= 0):
-                w1 = w1-pad
-            if (h2+pad <= self.img_height):
-                h2 = h2 + pad
-            if (w2+pad <= self.img_width):
-                w2 = w2 + pad
-
-            mask = self.get_mask(obj)
-            top_pixels = []
-            for j in range(w1,w2):
-                for i in range(h1,h2):
-                    if((mask[i, j] != mask[i+1, j]) and (mask[i, j] == False)):
-                            top_pixels.append((i+1,j))
-                            break
-            for coords in top_pixels:
-                i,j = coords
-                topline[i,j] = True
+            h1, w1, h2, w2 = self._edge_guard(h1, w1, h2, w2, pad)
+            top_pixels = self._edge_pixels(obj, h1, w1, h2, w2, top=True, strict=True, return_true=True)
+            topline = self._pixels_ON(topline, top_pixels)
         return self.show_mask(topline)
+    
+    def object_bottomline(self, *args, pad=1):
+        bottomline = self._false_canvas()
+        for obj in args:
+            h1, w1, h2, w2 = self.get_box(obj)
+            h1, w1, h2, w2 = self._edge_guard(h1, w1, h2, w2, pad)
+            bottom_pixels = self._edge_pixels(obj, h1, w1, h2, w2, bottom=True, strict=True, return_true=True)
+            bottomline = self._pixels_ON(bottomline, bottom_pixels)
+        return self.show_mask(bottomline)
         
-    def object_relations(self, tol=0.1):
-        if(self.total_objects <= 1):
-            print('Not enough objects detected.')
+    def object_relations(self, *args, tol=0.1):
+        if self.total_objects <= 1:
+            print('Not enough objects detected.')            
         else:
-            ids = range(1, self.total_objects+1)
-            combos = combinations(ids, r=2) # all possible combinations of pairs
+            if len(args) == 0:
+                ids = range(1, self.total_objects+1)
+                combos = combinations(ids, r=2)
+            elif len(args)==1:
+                other_objects = (other_objects for other_objects in range(1, self.total_objects+1) if other_objects not in args)
+                combos = product(args, other_objects)
+            else:
+                ids = args
+                combos = combinations(ids, r=2) 
             object_relations = {'object relations': {'next to':[], 'above':[], 'below':[],
                                                      'touching':[], 'on':[], 'in':[]}
                                }
             for rel in combos:
-                print(f"Analyzing object_id {rel[0]}:{self.object_class(rel[0])} "
+                print(f"Analyzing object_id {rel[0]}:{self.object_class(rel[0]):<10} "
                       f"  and   object_id {rel[1]}:{self.object_class(rel[1])}")
                 obja, objb = rel
                 flip = rel[::-1]
                 h1a, w1a, h2a, w2a = self.get_box(obja)
                 h1b, w1b, h2b, w2b = self.get_box(objb)
                 
-                # Widen width of box size by tol
+                # Widen width of box size by tol if possible
                 if(w1a-tol*w1a >= 0):
                     w1a_mod = int(w1a-tol*w1a)
                 else:
@@ -388,7 +390,7 @@ class ObjectMapping:
                 toplineb = self.object_topline(objb)
                 
                 # boolean position checks
-                obj_grounded = np.allclose(h2a, h2b, atol=15)
+                obj_grounded = np.allclose(h2a, h2b, atol=int(0.04*self.img_height))
                 touching = np.any(np.bitwise_and(self.inflate_mask(obja), self.inflate_mask(objb)))
                 a_on_b = np.any(np.bitwise_and(maska, toplineb)) 
                 b_on_a = np.any(np.bitwise_and(maskb, toplinea))
@@ -507,16 +509,33 @@ class ObjectMapping:
         composite = Image.composite(mygrid, mask, mygrid)
         
         return composite
-
-        
-#     def grid_coords2(self, object_id, height=3, width=3):
-#         """Get grid coordinates using the mask pixels in form 'A1' where 'A1' is the top left grid"""
-        
     
-#     def object_summary(self, object_id):
+    def object_summary(self, object_id):
+         pass
 
 
-#     def image_summary(self):
+    def image_summary(self):
+        ids = range(1, self.total_objects+1)
+        display(self.object_outline(*ids, show_id=True, show_massbox=True))
+        print("Object IDs:")
+        print(self.get_objectID())
+        print('\n')
+        print("Object Counts:")
+        print(self.count_objects())
+        print('\n')
+        print("Object Relations:")
+        relations = self.object_relations()
+        for top, rel in relations.items():
+            print('\n')
+            for k, v in rel.items():
+                print(f"{k:<10}: {set(v)}")
+        print('\n')
+        print('Object Locations:')
+        print('Using default values: vertical center is 20% of image height, horizontal center is 33% of image width.')
+        print('Use instance_variable.object_location(object_ID, grid=True) to show grid lines.')
+        for i in ids:
+            print(f"ID: {i:<3}    Classification: {self.object_class(i):<10}   Location: {self.object_location(i)}")
+        
         
         
         
