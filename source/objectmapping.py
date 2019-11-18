@@ -1,3 +1,10 @@
+"""
+class ObjectMapping
+@author: Jaime Villanueva
+"""
+
+import warnings
+warnings.simplefilter('ignore', FutureWarning)
 import numpy as np
 from operator import itemgetter
 from keras.preprocessing.image import img_to_array
@@ -18,7 +25,7 @@ class ObjectMapping:
         from IPython.display import display
     ''' 
     
-    def __init__ (self, filename, results, class_names):
+    def __init__ (self, filename, results, class_names, cli=False):
         self.filename = filename
         self.r = results                    # results contain rois, class_ids, masks, and scores
         self.class_names = class_names
@@ -28,6 +35,7 @@ class ObjectMapping:
         self.font_size = 15 
         self.font_type = 'FreeMono.ttf'
         self.fnt = ImageFont.truetype(f"Pillow/Tests/fonts/{self.font_type}", self.font_size)
+        self.cli = cli
     
     def get_box(self, object_id):
         object_id = object_id-1
@@ -109,8 +117,11 @@ class ObjectMapping:
             mask = np.bitwise_or(mask, mass_boxes)
         mask_size = mask.shape[::-1]
         maskbytes = np.packbits(mask, axis=1)
-        
-        return Image.frombytes(mode='1', size=mask_size, data=maskbytes)
+        mask = Image.frombytes(mode='1', size=mask_size, data=maskbytes)
+        if self.cli:
+            mask.show()
+            mask.close()
+        return mask
            
     def box_center(self, object_id):
         h1, w1, h2, w2 = self.get_box(object_id)
@@ -183,7 +194,7 @@ class ObjectMapping:
         
     def object_location(self, object_id, height_center=0.333, width_center=0.2, grid=False):
         """Descriptive location on a 3x3 grid. Width and height lines are adjustable so the grid
-           does not have to be symmetric.
+           squares can be different sizes.
            height_center is the percentage of the height desired to be considered center.
            width_center is the percentage of the width desired to be considered center"""
         imgH_center_range, imgW_center_range = self._center_range(height_center, width_center)
@@ -211,8 +222,12 @@ class ObjectMapping:
         wloc = max(wloc_dict.items(), key=itemgetter(1))[0]
         if grid:
             composite = self._show_grid(imgH_center_range, imgW_center_range, *[object_id])
-            display(composite)
-            composite.close()
+            if self.cli:
+                composite.show()
+                composite.close()
+            else:   
+                display(composite)
+                composite.close()
         return (hloc, wloc)
     
     def _edge_pixels(self, object_id, h1, w1, h2, w2, top=False, bottom=False, sides=False, strict=False, return_true = True):
@@ -493,9 +508,12 @@ class ObjectMapping:
                 draw.text((0, coord) , f"{text}", font=self.fnt, fill='black')
             for coord, text in zip(width_mid, numbers):
                 draw.text((coord, self.img_height+5), f"{text}", font=self.fnt, fill='black')
-                
-            display(composite)
-            composite.close()
+            if self.cli:
+                composite.show()
+                composite.close()
+            else:
+                display(composite)
+                composite.close()
         return grid_sectors
 
     def _show_grid(self, height_array, width_array, *args):
@@ -511,12 +529,17 @@ class ObjectMapping:
         return composite
     
     def object_summary(self, object_id):
-         pass
-
+        pass
 
     def image_summary(self):
         ids = range(1, self.total_objects+1)
-        display(self.object_outline(*ids, show_id=True, show_massbox=True))
+        outlines = self.object_outline(*ids, show_id=True, show_massbox=True)
+        if self.cli:
+            outlines.show()
+            outlines.close()
+        else:
+            display(outlines)
+            outlines.close()        
         print("Object IDs:")
         print(self.get_objectID())
         print('\n')
@@ -538,8 +561,54 @@ class ObjectMapping:
         
         
         
-        
+def main():
     
+    parser = argparse.ArgumentParser()
+    parser.add_argument("filename", help="filename required")
+    args = parser.parse_args()
+    if args.filename:
+        imagefile = args.filename
+
+    # define the test configuration
+    class TestConfig(Config):
+        NAME = "test"
+        GPU_COUNT = 1
+        IMAGES_PER_GPU = 1
+        NUM_CLASSES = 1 + 80
+
+    # define the model
+    rcnn = MaskRCNN(mode='inference', model_dir='./', config=TestConfig())
+
+    # load coco model weights
+    model_weights = '../data/mask_rcnn_coco.h5'
+    print(f"loading {model_weights}...")
+    rcnn.load_weights(model_weights, by_name=True)
+    
+    img = load_img(imagefile)
+    img = img_to_array(img)
+    # make prediction
+    results = rcnn.detect([img], verbose=False)
+    # get dictionary for first prediction
+    r = results[0]
+    
+    # instantiate object
+    x = ObjectMapping(imagefile, r, class_names, cli=False)
+    x.image_summary()
+    display_instances(img, r['rois'], r['masks'], r['class_ids'], class_names, r['scores'])
+
+
+if __name__ == '__main__':
+    
+    from keras.preprocessing.image import load_img
+    from mrcnn.config import Config
+    from mrcnn.model import MaskRCNN
+    from mrcnn.visualize import display_instances
+    from mrcnn_classes import class_names
+    import argparse
+    
+    main()
+      
+  
 
         
         
