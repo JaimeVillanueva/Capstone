@@ -333,22 +333,24 @@ class ObjectMapping:
         return self.show_mask(outline)
     
     def object_topline(self, *args, pad=1):
+        """Must use show_mask() to view"""
         topline = self._false_canvas()
         for obj in args:
             h1, w1, h2, w2 = self.get_box(obj)
             h1, w1, h2, w2 = self._edge_guard(h1, w1, h2, w2, pad)
             top_pixels = self._edge_pixels(obj, h1, w1, h2, w2, top=True, strict=True, return_true=True)
             topline = self._pixels_ON(topline, top_pixels)
-        return self.show_mask(topline)
+        return topline
     
     def object_bottomline(self, *args, pad=1):
+        """Must use show_mask() to view"""
         bottomline = self._false_canvas()
         for obj in args:
             h1, w1, h2, w2 = self.get_box(obj)
             h1, w1, h2, w2 = self._edge_guard(h1, w1, h2, w2, pad)
             bottom_pixels = self._edge_pixels(obj, h1, w1, h2, w2, bottom=True, strict=True, return_true=True)
             bottomline = self._pixels_ON(bottomline, bottom_pixels)
-        return self.show_mask(bottomline)
+        return bottomline
         
     def object_relations(self, *args, tol=0.1):
         if self.total_objects <= 1:
