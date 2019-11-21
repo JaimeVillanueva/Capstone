@@ -120,7 +120,6 @@ class ObjectMapping:
         mask = Image.frombytes(mode='1', size=mask_size, data=maskbytes)
         if self.cli:
             mask.show()
-            mask.close()
         return mask
            
     def box_center(self, object_id):
