@@ -33,8 +33,8 @@ class ObjectMapping:
         self.img_width = self.r['masks'].shape[1]
         self.total_objects = len(self.r['rois'])
         self.font_size = 15 
-        self.font_type = 'FreeMono.ttf'
-        self.fnt = ImageFont.truetype(f"Pillow/Tests/fonts/{self.font_type}", self.font_size)
+        self.font_type = 'arial.ttf'
+        self.fnt = ImageFont.truetype(f"Pillow\Tests\fonts\{self.font_type}", self.font_size)
         self.cli = cli
     
     def get_box(self, object_id):
@@ -235,54 +235,56 @@ class ObjectMapping:
         if(isinstance(object_id, np.ndarray)):
             mask = object_id
         else:
-            mask = self.get_mask(object_id)
-        h1, w1, h2, w2 = self._edge_guard(h1, w1, h2, w2, pad=1)
-        h1 = h1 + 1
-        w1 = w1 + 1
-        h2 = h2 - 1
-        w2 = w2 - 1
-        
+            mask = self.get_mask(object_id)       
         edge_pixels = []
         # Scan horizontally to find edge
         if sides:
             for i in range(h1,h2):    
-                for j in range(w1,w2):
+                for j in range(w1,w2-1):
+                    if((mask[i, j] ==  True) and (i==0 or j == 0 or i == self.img_height)):
+                        edge_pixels.append((i,j))
+                    if((mask[i, j] ==  True) and (j+1 == self.img_width)):
+                        edge_pixels.append((i,j+1))
                     if((mask[i, j] != mask[i, j+1]) and (mask[i,j] == False)):
                         if return_true:
                             edge_pixels.append((i,j+1))
                         else:
-                            edge_pixels.append((i,j))
-                        if strict:
-                           break        
+                            edge_pixels.append((i,j))       
                     if((mask[i, j] != mask[i, j+1]) and (mask[i,j] == True)):
                         if return_true:
                             edge_pixels.append((i,j))
                         else:
                             edge_pixels.append((i,j+1))
-                        if strict:
-                           break
 
         # Scan vertically to find edge
         if top:
             for j in range(w1,w2):
-                for i in range(h1,h2):
+                for i in range(h1,h2-1):
+                    if((mask[i, j] ==  True) and (i == 0 or j == 0 or j == self.img_width)):
+                        edge_pixels.append((i,j))
+                    if((mask[i, j] ==  True) and (i+1 == self.img_height)):
+                        edge_pixels.append((i+1,j))
                     if((mask[i, j] != mask[i+1, j]) and (mask[i, j] == False)):
                         if return_true:
                             edge_pixels.append((i+1,j))
                         else:
                             edge_pixels.append((i,j))
                         if strict:
-                           break
+                            break
         if bottom:
             for j in range(w1,w2):
-                for i in reversed(range(h1,h2+1)):
-                    if((mask[i, j] != mask[i+1, j]) and (mask[i, j] == True)):
+                for i in reversed(range(h1+1,h2)):
+                    if((mask[i, j] ==  True) and (i == self.img_height or j == 0 or j == self.img_width)):
+                        edge_pixels.append((i,j))
+                    if((mask[i, j] ==  True) and (i-1 == 0)):
+                        edge_pixels.append((i-1,j))
+                    if((mask[i, j] != mask[i-1, j]) and (mask[i, j] == False)):
                         if return_true:
-                            edge_pixels.append((i,j))
+                            edge_pixels.append((i-1,j))
                         else:
-                            edge_pixels.append((i+1,j))
+                            edge_pixels.append((i,j))
                         if strict:
-                           break
+                            break
         return edge_pixels
     
     def _pixels_ON(self, mask, coords):
