@@ -236,6 +236,12 @@ class ObjectMapping:
             mask = object_id
         else:
             mask = self.get_mask(object_id)
+        h1, w1, h2, w2 = self._edge_guard(h1, w1, h2, w2, pad=1)
+        h1 = h1 + 1
+        w1 = w1 + 1
+        h2 = h2 - 1
+        w2 = w2 - 1
+        
         edge_pixels = []
         # Scan horizontally to find edge
         if sides:
