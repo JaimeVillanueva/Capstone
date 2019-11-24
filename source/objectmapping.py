@@ -35,8 +35,6 @@ class ObjectMapping:
         self.total_objects = len(self.r['rois'])
         self.font_size = 12 
         self.font_type = 'arialbd.ttf'
-        #self.fnt = ImageFont.truetype(f"Pillow/Tests/fonts/{self.font_type}", self.font_size)
-        #print(os.path.join("Pillow", "Tests", "fonts", self.font_type))
         self.fnt = ImageFont.truetype(os.path.join('Pillow', 'Tests', 'fonts', self.font_type), self.font_size)
         self.cli = cli
     
