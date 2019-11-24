@@ -12,6 +12,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 from itertools import combinations, product
 from string import ascii_uppercase
 from IPython.display import display
+import os
 
 class ObjectMapping:
     '''
@@ -32,9 +33,11 @@ class ObjectMapping:
         self.img_height = self.r['masks'].shape[0]
         self.img_width = self.r['masks'].shape[1]
         self.total_objects = len(self.r['rois'])
-        self.font_size = 15 
-        self.font_type = 'arial.ttf'
-        self.fnt = ImageFont.truetype(f"Pillow\Tests\fonts\{self.font_type}", self.font_size)
+        self.font_size = 12 
+        self.font_type = 'arialbd.ttf'
+        #self.fnt = ImageFont.truetype(f"Pillow/Tests/fonts/{self.font_type}", self.font_size)
+        #print(os.path.join("Pillow", "Tests", "fonts", self.font_type))
+        self.fnt = ImageFont.truetype(os.path.join('Pillow', 'Tests', 'fonts', self.font_type), self.font_size)
         self.cli = cli
     
     def get_box(self, object_id):
@@ -572,11 +575,18 @@ class ObjectMapping:
         
 def main():
     
-    parser = argparse.ArgumentParser()
-    parser.add_argument("filename", help="filename required")
-    args = parser.parse_args()
-    if args.filename:
-        imagefile = args.filename
+    from keras.preprocessing.image import load_img
+    from mrcnn.config import Config
+    from mrcnn.model import MaskRCNN
+    from mrcnn.visualize import display_instances
+    from mrcnn_classes import class_names
+#    import argparse
+#    
+#    parser = argparse.ArgumentParser()
+#    parser.add_argument("filename", help="filename required")
+#    args = parser.parse_args()
+#    if args.filename:
+#        imagefile = args.filename
 
     # define the test configuration
     class TestConfig(Config):
@@ -592,7 +602,7 @@ def main():
     model_weights = '../data/mask_rcnn_coco.h5'
     print(f"loading {model_weights}...")
     rcnn.load_weights(model_weights, by_name=True)
-    
+    imagefile = '../images/dog_grid.png'
     img = load_img(imagefile)
     img = img_to_array(img)
     # make prediction
@@ -607,14 +617,7 @@ def main():
 
 
 if __name__ == '__main__':
-    
-    from keras.preprocessing.image import load_img
-    from mrcnn.config import Config
-    from mrcnn.model import MaskRCNN
-    from mrcnn.visualize import display_instances
-    from mrcnn_classes import class_names
-    import argparse
-    
+       
     main()
       
   
