@@ -102,7 +102,7 @@ class ObjectMapping:
             mass_boxes = np.bitwise_or(mass_boxes, temp_box)
         return mass_boxes
     
-    def show_mask(self, *args, show_massbox = False, show_id = False):
+    def show_mask(self, *args, show_massbox = False, show_id = False, internal=True):
         """Creates PIL image from a matrix of booleans. Shows a mask that is either
            directly passed as a boolean matrix or that is retrieved using the object ID.
            show_massbox is only for a mask that is retrieved with the object ID.
@@ -118,7 +118,7 @@ class ObjectMapping:
         mask_size = mask.shape[::-1]
         maskbytes = np.packbits(mask, axis=1)
         mask = Image.frombytes(mode='1', size=mask_size, data=maskbytes)
-        if self.cli:
+        if self.cli and internal:
             mask.show()
         return mask
            
@@ -355,10 +355,11 @@ class ObjectMapping:
             mass_boxes = self._show_massbox(*args)
             outline = np.bitwise_or(outline, mass_boxes)
        
-        return self.show_mask(outline)
+        return self.show_mask(outline, internal=False)
     
     def object_topline(self, *args, pad=1):
         """Must use show_mask() to view"""
+        print("object_topline returns a boolean array and needs show_mask() to view")
         topline = self._false_canvas()
         for obj in args:
             h1, w1, h2, w2 = self.get_box(obj)
@@ -369,6 +370,7 @@ class ObjectMapping:
     
     def object_bottomline(self, *args, pad=1):
         """Must use show_mask() to view"""
+        print("object_bottomline returns a boolean array and needs show_mask() to view")
         bottomline = self._false_canvas()
         for obj in args:
             h1, w1, h2, w2 = self.get_box(obj)
@@ -549,7 +551,7 @@ class ObjectMapping:
             draw.line((i, 0, i, self.img_height), fill="white")
         for i in height_array:
             draw.line((0, i, self.img_width, i), fill="white")
-        mask = self.show_mask(*args)
+        mask = self.show_mask(*args, internal=False)
         composite = Image.composite(mygrid, mask, mygrid)
         
         return composite
@@ -561,7 +563,7 @@ class ObjectMapping:
         ids = range(1, self.total_objects+1)
         outlines = self.object_outline(*ids, show_id=True, show_massbox=True)
         if self.cli:
-            #outlines.show()
+            outlines.show()
             outlines.close()
         else:
             display(outlines)
