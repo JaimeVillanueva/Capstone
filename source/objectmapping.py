@@ -17,12 +17,12 @@ class ObjectMapping:
     '''
         Required:
         import numpy as np
-        from operator import itemgetter
         from keras.preprocessing.image import img_to_array
         from PIL import Image, ImageDraw, ImageFont, ImageOps
         from itertools import combinations, product
         from string import ascii_uppercase
         from IPython.display import display
+        import os
     ''' 
     
     def __init__ (self, filename, results, class_names, cli=False):
@@ -588,6 +588,8 @@ class ObjectMapping:
         
         
 def main():
+    import warnings
+    warnings.simplefilter('ignore', FutureWarning)
     from keras.preprocessing.image import load_img
     from mrcnn.config import Config
     from mrcnn.model import MaskRCNN
