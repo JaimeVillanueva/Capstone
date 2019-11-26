@@ -102,6 +102,14 @@ class ObjectMapping:
             mass_boxes = np.bitwise_or(mass_boxes, temp_box)
         return mass_boxes
     
+    def _image_from_bytes(self, mask):
+        """Internal only"""
+        mask_size = mask.shape[::-1]
+        maskbytes = np.packbits(mask, axis=1)
+        mask = Image.frombytes(mode='1', size=mask_size, data=maskbytes)
+        
+        return mask
+    
     def show_mask(self, *args, show_massbox = False, show_id = False, internal=True):
         """Creates PIL image from a matrix of booleans. Shows a mask that is either
            directly passed as a boolean matrix or that is retrieved using the object ID.
@@ -115,9 +123,7 @@ class ObjectMapping:
         if show_massbox:
             mass_boxes = self._show_massbox(*args)
             mask = np.bitwise_or(mask, mass_boxes)
-        mask_size = mask.shape[::-1]
-        maskbytes = np.packbits(mask, axis=1)
-        mask = Image.frombytes(mode='1', size=mask_size, data=maskbytes)
+        mask = self._image_from_bytes(mask)
         if self.cli and internal:
             mask.show()
         return mask
@@ -354,8 +360,11 @@ class ObjectMapping:
         if show_massbox:
             mass_boxes = self._show_massbox(*args)
             outline = np.bitwise_or(outline, mass_boxes)
-       
-        return self.show_mask(outline, internal=False)
+            outline = self._image_from_bytes(outline)
+        if self.cli:
+            outline.show()
+            outline.close()
+        return outline
     
     def object_topline(self, *args, pad=1):
         """Must use show_mask() to view"""
