@@ -347,7 +347,7 @@ class ObjectMapping:
         
         return false_canvas
     
-    def object_outline(self, *args, pad=1, show_id=False, show_massbox=False):
+    def object_outline(self, *args, pad=1, show_id=False, show_massbox=False, internal=True):
         outline = self._false_canvas()
         for obj in args:
             h1, w1, h2, w2 = self.get_box(obj)
@@ -360,14 +360,13 @@ class ObjectMapping:
         if show_massbox:
             mass_boxes = self._show_massbox(*args)
             outline = np.bitwise_or(outline, mass_boxes)
-            outline = self._image_from_bytes(outline)
-        if self.cli:
+        outline = self._image_from_bytes(outline)
+        if self.cli and internal:
             outline.show()
         return outline
     
     def object_topline(self, *args, pad=1):
         """Must use show_mask() to view"""
-        print("object_topline returns a boolean array and needs show_mask() to view")
         topline = self._false_canvas()
         for obj in args:
             h1, w1, h2, w2 = self.get_box(obj)
@@ -378,7 +377,6 @@ class ObjectMapping:
     
     def object_bottomline(self, *args, pad=1):
         """Must use show_mask() to view"""
-        print("object_bottomline returns a boolean array and needs show_mask() to view")
         bottomline = self._false_canvas()
         for obj in args:
             h1, w1, h2, w2 = self.get_box(obj)
@@ -569,7 +567,7 @@ class ObjectMapping:
 
     def image_summary(self):
         ids = range(1, self.total_objects+1)
-        outlines = self.object_outline(*ids, show_id=True, show_massbox=True)
+        outlines = self.object_outline(*ids, show_id=True, show_massbox=True, internal=False)
         if self.cli:
             outlines.show()
             outlines.close()
