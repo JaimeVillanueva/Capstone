@@ -6,7 +6,6 @@ class ObjectMapping
 import warnings
 warnings.simplefilter('ignore', FutureWarning)
 import numpy as np
-from operator import itemgetter
 from keras.preprocessing.image import img_to_array
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 from itertools import combinations, product
@@ -192,11 +191,12 @@ class ObjectMapping:
         imgW_center_range = np.array([0.5*self.img_width*(1-width_center), 0.5*self.img_width*(1+width_center)]).astype(int)
         return (imgH_center_range, imgW_center_range)
         
-    def object_location(self, object_id, height_center=0.333, width_center=0.2, grid=False):
+    def object_location(self, object_id, height_center=0.333, width_center=0.2, tol = 0.2, grid=False):
         """Descriptive location on a 3x3 grid. Width and height lines are adjustable so the grid
            squares can be different sizes.
            height_center is the percentage of the height desired to be considered center.
-           width_center is the percentage of the width desired to be considered center"""
+           width_center is the percentage of the width desired to be considered center
+           tol is threshold of % of total pixels for reporting grid area"""
         imgH_center_range, imgW_center_range = self._center_range(height_center, width_center)
         # section canvas into horizontal and vertical thirds
         htop = (0, 0, imgH_center_range[0], self.img_width)
@@ -214,12 +214,28 @@ class ObjectMapping:
         wcenter_pixels = self.mask_pixel_count(object_id, *wcenter)
         wright_pixels = self.mask_pixel_count(object_id, *wright)
         
-        hloc_dict = {'top':htop_pixels, 'center':hcenter_pixels, 'bottom':hbottom_pixels}
-        wloc_dict = {'left':wleft_pixels, 'center':wcenter_pixels, 'right':wright_pixels}
+        ppixel = np.array([htop_pixels, hcenter_pixels, hbottom_pixels, wleft_pixels, wcenter_pixels, wright_pixels])
+        ppixel = ppixel/self.mask_pixel_count(object_id)
+        ppixel_threshold = ppixel >= tol
+        ppixel_names = ['top', 'center', 'bottom', 'left', 'center', 'right']
         
-        # return the key with the largest value in each dictionary
-        hloc = max(hloc_dict.items(), key=itemgetter(1))[0]
-        wloc = max(wloc_dict.items(), key=itemgetter(1))[0]
+        hloc = set()
+        wloc = set()
+        if ppixel_threshold[0] and ppixel_threshold[2]:
+            hloc.update(ppixel_names[:3])
+        else:
+            for index, value in enumerate(ppixel_threshold[:3]):
+                if value:
+                    hloc.add(ppixel_names[index])
+        if ppixel_threshold[3] and ppixel_threshold[5]:
+            wloc.update(ppixel_names[3:6])
+        else:
+            for index, value in enumerate(ppixel_threshold[3:6], start=3):
+                if value:
+                    wloc.add(ppixel_names[index])
+
+        locations = {'vertical':hloc, 'horizontal':wloc}
+            
         if grid:
             composite = self._show_grid(imgH_center_range, imgW_center_range, *[object_id])
             if self.cli:
@@ -228,7 +244,7 @@ class ObjectMapping:
             else:   
                 display(composite)
                 composite.close()
-        return (hloc, wloc)
+        return locations
     
     def _edge_pixels(self, object_id, h1, w1, h2, w2, top=False, bottom=False, sides=False, strict=False, return_true = True):
         """Internal. Returns list of pixels at the True/False border of a mask.
@@ -545,7 +561,7 @@ class ObjectMapping:
         ids = range(1, self.total_objects+1)
         outlines = self.object_outline(*ids, show_id=True, show_massbox=True)
         if self.cli:
-            outlines.show()
+            #outlines.show()
             outlines.close()
         else:
             display(outlines)
@@ -572,20 +588,19 @@ class ObjectMapping:
         
         
 def main():
-    
     from keras.preprocessing.image import load_img
     from mrcnn.config import Config
     from mrcnn.model import MaskRCNN
     from mrcnn.visualize import display_instances
     from mrcnn_classes import class_names
-#    import argparse
-#    
-#    parser = argparse.ArgumentParser()
-#    parser.add_argument("filename", help="filename required")
-#    args = parser.parse_args()
-#    if args.filename:
-#        imagefile = args.filename
-
+    import argparse
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("filename", help="filename required")
+    args = parser.parse_args()
+    if args.filename:
+        imagefile = args.filename
+        
     # define the test configuration
     class TestConfig(Config):
         NAME = "test"
@@ -600,7 +615,6 @@ def main():
     model_weights = '../data/mask_rcnn_coco.h5'
     print(f"loading {model_weights}...")
     rcnn.load_weights(model_weights, by_name=True)
-    imagefile = '../images/dog_grid.png'
     img = load_img(imagefile)
     img = img_to_array(img)
     # make prediction
@@ -609,8 +623,9 @@ def main():
     r = results[0]
     
     # instantiate object
-    x = ObjectMapping(imagefile, r, class_names, cli=False)
-    x.image_summary()
+    global imap
+    imap = ObjectMapping(imagefile, r, class_names, cli=True)
+    imap.image_summary()
     display_instances(img, r['rois'], r['masks'], r['class_ids'], class_names, r['scores'])
 
 
