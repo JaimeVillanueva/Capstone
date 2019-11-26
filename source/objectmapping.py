@@ -363,7 +363,6 @@ class ObjectMapping:
             outline = self._image_from_bytes(outline)
         if self.cli:
             outline.show()
-            outline.close()
         return outline
     
     def object_topline(self, *args, pad=1):
