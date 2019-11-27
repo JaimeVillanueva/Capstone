@@ -24,7 +24,7 @@ The script can be run directly from the command line assuming Python is installe
 <br><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```>>> help(imap)```
 
-# Google Colab
+## Google Colab
 
 All notebooks can be run in Google Colab, but ImageFont from PIL throws an error looking for the font_type. After the repo is cloned to colab, the **objectmapping.py** script needs its \_\_init\_\_ method edited so that a valid file path exists to the .ttf file. Users have used two approaches. 
 1. Copy the .ttf file into the source folder and remove the path:<br><br>
