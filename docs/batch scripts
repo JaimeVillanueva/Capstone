@@ -1,6 +1,18 @@
+# adding border to pictures (no longer used):
 for i in `ls`
 do
     name="mod_$i"
     echo "working on $name ..."
     convert $i -border 5%x5% $name
 done
+
+
+
+
+
+# Generating list of files in a directory:
+ls -d "$PWD"/* > nameoffile.txt
+ls -d -1 "$PWD"/* > nameoffile.txt
+find /path/to/dir -type f > nameoffile.txt
+find /path/to/dir -maxdepth 1 -type f > nameoffile.txt
+
