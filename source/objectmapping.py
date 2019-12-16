@@ -33,8 +33,8 @@ class ObjectMapping:
         self.img_width = self.r['masks'].shape[1]
         self.total_objects = len(self.r['rois'])
         self.font_size = 12 
-        self.font_type = 'arialbd.ttf'
-        self.fnt = ImageFont.truetype(os.path.join('Pillow', 'Tests', 'fonts', self.font_type), self.font_size)
+        self.font_type = 'FreeMonoBold.ttf'
+        self.fnt = ImageFont.truetype(self.font_type, self.font_size)
         self.cli = cli
     
     def get_box(self, object_id):
@@ -153,8 +153,7 @@ class ObjectMapping:
         bmask_area = bmask.shape[0]*bmask.shape[1]
         
         check_max = (true_count/bmask_area)*true_count # Track largest product of perc and count
-        temp_area = bmask_area                         # Initialize to any value. Shrinks as step_variable changes
-        while(temp_area != 0):
+        while(True):
             if(add):
                 step_variable = step_variable + step
             else:
@@ -170,6 +169,8 @@ class ObjectMapping:
             temp_area = temp_mask.shape[0]*temp_mask.shape[1]
             if (temp_area != 0):
                 temp_perc = temp_true/temp_area
+            else:
+                break
             if (temp_true*temp_perc > check_max):
                 best_step_variable = step_variable
                 check_max = temp_true*temp_perc       
