@@ -223,7 +223,7 @@ class ObjectMapping:
         
         ppixel = np.array([htop_pixels, hcenter_pixels, hbottom_pixels, wleft_pixels, wcenter_pixels, wright_pixels])
         ppixel = ppixel/self.mask_pixel_count(object_id)
-        ppixel_threshold = ppixel >= tol
+        ppixel_threshold = ppixel > tol
         ppixel_names = ['top', 'center', 'bottom', 'left', 'center', 'right']
         
         hloc = set()
@@ -445,7 +445,7 @@ class ObjectMapping:
                 touching = np.any(np.bitwise_and(self.inflate_mask(obja), self.inflate_mask(objb)))
                 a_on_b = np.any(np.bitwise_and(maska, toplineb)) 
                 b_on_a = np.any(np.bitwise_and(maskb, toplinea))
-                a_align_b = b_align_a = wcentera in list(range(w1b, w2b)) or wcenterb in list(range(w1a, w2a))
+                a_align_b = b_align_a = wcentera in list(range(w1b_mod, w2b_mod)) or wcenterb in list(range(w1a_mod, w2a_mod))
                 a_above_b = hcentera < hcenterb
                 b_above_a = hcenterb < hcentera
                 a_below_b = hcentera > hcenterb
@@ -457,6 +457,7 @@ class ObjectMapping:
                         
                 if(touching):
                     object_relations['object relations']['touching'].append(rel)
+                    object_relations['object relations']['touching'].append(flip)
                     if(a_on_b and not obj_grounded and a_above_b and not a_in_b):
                         object_relations['object relations']['on'].append(rel)
                         object_relations['object relations']['above'].append(rel)
@@ -469,30 +470,22 @@ class ObjectMapping:
                         object_relations['object relations']['in'].append(rel)
                     elif(b_in_a):
                         object_relations['object relations']['in'].append(flip)
-                    else:
+                    if(obj_grounded):
                         object_relations['object relations']['next to'].append(rel)
-                        
-                    if(a_above_b and a_align_b):
-                        object_relations['object relations']['above'].append(rel)
-                    elif(a_below_b and a_align_b):
-                        object_relations['object relations']['below'].append(rel)
-                        
-                    if(b_above_a and b_align_a):
-                        object_relations['object relations']['above'].append(flip)
-                    elif(b_below_a and b_align_a):
-                        object_relations['object relations']['below'].append(flip)
+                        object_relations['object relations']['next to'].append(flip)              
                         
                 else:
                     if(np.any(np.bitwise_and(maska, boxb)) or np.any(np.bitwise_and(maskb, boxa))):
                         object_relations['object relations']['next to'].append(rel)
-                    if(a_above_b and a_align_b):
-                        object_relations['object relations']['above'].append(rel)
-                    elif(b_above_a and b_align_a):
-                        object_relations['object relations']['above'].append(flip)
-                    elif(a_below_b and a_align_b):
-                        object_relations['object relations']['below'].append(rel)
-                    elif(b_below_a and b_align_a):
-                        object_relations['object relations']['below'].append(flip)
+                        object_relations['object relations']['next to'].append(flip)
+                if(a_above_b and a_align_b):
+                    object_relations['object relations']['above'].append(rel)
+                elif(a_below_b and a_align_b):
+                    object_relations['object relations']['below'].append(rel)
+                if(b_above_a and b_align_a):
+                    object_relations['object relations']['above'].append(flip)
+                elif(b_below_a and b_align_a):
+                    object_relations['object relations']['below'].append(flip)
             
             # Remove duplicate tuple pairs
             object_relations = {'object relations': {'next to':set(object_relations['object relations']['next to']),
@@ -593,7 +586,7 @@ class ObjectMapping:
         print('\n')
         print("Object Relations:")
         relations = self.object_relations()
-        for top, rel in relations.items():
+        for _, rel in relations.items():
             print('\n')
             for k, v in rel.items():
                 print(f"{k:<10}: {v}")
