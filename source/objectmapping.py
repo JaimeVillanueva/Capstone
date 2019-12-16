@@ -198,12 +198,12 @@ class ObjectMapping:
         imgW_center_range = np.array([0.5*self.img_width*(1-width_center), 0.5*self.img_width*(1+width_center)]).astype(int)
         return (imgH_center_range, imgW_center_range)
         
-    def object_location(self, object_id, height_center=0.333, width_center=0.2, tol = 0.2, grid=False):
+    def object_location(self, object_id, height_center=0.333, width_center=0.2, tol = 0.0, grid=False):
         """Descriptive location on a 3x3 grid. Width and height lines are adjustable so the grid
            squares can be different sizes.
            height_center is the percentage of the height desired to be considered center.
            width_center is the percentage of the width desired to be considered center
-           tol is threshold of % of total pixels for reporting grid area"""
+           tol is threshold of % of total of object's pixels needed to be present for reporting grid area"""
         imgH_center_range, imgW_center_range = self._center_range(height_center, width_center)
         # section canvas into horizontal and vertical thirds
         htop = (0, 0, imgH_center_range[0], self.img_width)
@@ -398,13 +398,14 @@ class ObjectMapping:
                 combos = product(args, other_objects)
             else:
                 ids = args
-                combos = combinations(ids, r=2) 
+                combos = combinations(ids, r=2)
+                
             object_relations = {'object relations': {'next to':[], 'above':[], 'below':[],
                                                      'touching':[], 'on':[], 'in':[]}
                                }
             for rel in combos:
-                print(f"Analyzing object_id {rel[0]}:{self.object_class(rel[0]):<10} "
-                      f"  and   object_id {rel[1]}:{self.object_class(rel[1])}")
+#                 print(f"Analyzing object_id {rel[0]}:{self.object_class(rel[0]):<10} "
+#                       f"  and   object_id {rel[1]}:{self.object_class(rel[1])}")
                 obja, objb = rel
                 flip = rel[::-1]
                 h1a, w1a, h2a, w2a = self.get_box(obja)
@@ -492,6 +493,15 @@ class ObjectMapping:
                         object_relations['object relations']['below'].append(rel)
                     elif(b_below_a and b_align_a):
                         object_relations['object relations']['below'].append(flip)
+            
+            # Remove duplicate tuple pairs
+            object_relations = {'object relations': {'next to':set(object_relations['object relations']['next to']),
+                                                     'above':set(object_relations['object relations']['above']),
+                                                     'below':set(object_relations['object relations']['below']),
+                                                     'touching':set(object_relations['object relations']['touching']),
+                                                     'on':set(object_relations['object relations']['on']),
+                                                     'in':set(object_relations['object relations']['in'])}
+                               }
                                               
         return object_relations
     
@@ -586,13 +596,13 @@ class ObjectMapping:
         for top, rel in relations.items():
             print('\n')
             for k, v in rel.items():
-                print(f"{k:<10}: {set(v)}")
+                print(f"{k:<10}: {v}")
         print('\n')
         print('Object Locations:')
-        print('Using default values: vertical center is 20% of image height, horizontal center is 33% of image width.')
-        print('Use instance_variable.object_location(object_ID, grid=True) to show grid lines.')
+        print('Default Values: vertical center area is 33% of image height, horizontal center area is 20% of image width.')
+        print('(Use imap.object_location(object_ID, grid=True) to show grid lines.)')
         for i in ids:
-            print(f"ID: {i:<3}    Classification: {self.object_class(i):<10}   Location: {self.object_location(i)}")
+            print(f"ID: {i:<3}    {self.object_class(i):<10}   Location: {self.object_location(i)}")
         
         
         
