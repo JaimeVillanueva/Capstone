@@ -318,7 +318,7 @@ class ObjectMapping:
         return mask
     
     def _edge_guard(self, h1, w1, h2, w2, pad):
-        """Internal. Scanning methods start outside the bounding box. This checks that the start postion exisits in the image."""
+        """Internal. Scanning methods start outside the bounding box. This checks that the start postion exists in the image."""
         if (h1-pad >= 0):
                 h1 = h1-pad
         if (w1-pad >= 0):
@@ -386,7 +386,7 @@ class ObjectMapping:
             bottomline = self._pixels_ON(bottomline, bottom_pixels)
         return bottomline
         
-    def object_relations(self, *args, tol=0.1):
+    def object_relations(self, *args, tol=0.15):
         if self.total_objects <= 1:
             print('Not enough objects detected.')            
         else:
@@ -445,7 +445,7 @@ class ObjectMapping:
                 touching = np.any(np.bitwise_and(self.inflate_mask(obja), self.inflate_mask(objb)))
                 a_on_b = np.any(np.bitwise_and(maska, toplineb)) 
                 b_on_a = np.any(np.bitwise_and(maskb, toplinea))
-                a_align_b = b_align_a = wcentera in list(range(w1b_mod, w2b_mod)) or wcenterb in list(range(w1a_mod, w2a_mod))
+                a_align_b = b_align_a = wcentera in list(range(w1b, w2b)) or wcenterb in list(range(w1a, w2a))
                 a_above_b = hcentera < hcenterb
                 b_above_a = hcenterb < hcentera
                 a_below_b = hcentera > hcenterb
@@ -513,9 +513,9 @@ class ObjectMapping:
        
         # align to grid coordinates
         h1_array = h1 < height_array
-        h2_array = h2 < height_array
+        h2_array = h2 <= height_array
         w1_array = w1 < width_array
-        w2_array = w2 < width_array
+        w2_array = w2 <= width_array
         
         for i in range(len(height_array)-1):
             if(h1_array[i] != h1_array[i+1]):
